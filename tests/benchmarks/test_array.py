@@ -51,7 +51,7 @@ def test_basic_sum(small_client):
 
     memory = cluster_memory(small_client)  # 76.66 GiB
     target_nbytes = memory * 5
-    data = da.zeros(
+    data = da.random.randint(0, 255,
         scaled_array_shape(target_nbytes, ("100MiB", "x")),
         chunks=(parse_bytes("100MiB") // 8, 1),
     )
@@ -154,3 +154,16 @@ def test_dot_product(small_client):
     a = da.random.random((24 * 1024, 24 * 1024), chunks="128 MiB")  # 4.5 GiB
     b = (a @ a.T).sum().round(3)
     wait(b, small_client, 10 * 60)
+
+
+@pytest.mark.parametrize("threshold", [128, 200, 250])
+@pytest.mark.parametrize("nlayers", [10, 100, 1000])
+def test_filter_then_average(threshold, nlayers, small_client):
+    memory = cluster_memory(small_client)  # 76.66 GiB
+    target_nbytes = memory * 5
+    data = da.random.randint(0, 255,
+        scaled_array_shape(target_nbytes, ("100MiB", "x", nlayers)),
+        chunks=(parse_bytes("100MiB") // 8, 10, 10),
+    )
+
+    result = data[data > threshold].mean().compute()
